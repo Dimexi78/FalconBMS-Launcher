@@ -37,11 +37,12 @@ namespace FalconBMS.Launcher.Input
             try
             {
                 byte[] buttonState = _hwDevice.CurrentJoystickState.GetButtons();
+                int buttonCount = Math.Min(buttonState.Length, _lastButtons.Length);
 
-                Array.Copy(buttonState, _lastButtons, buttonState.Length);
+                Array.Copy(buttonState, _lastButtons, buttonCount);
 
-                if (buttonState.Length < _lastButtons.Length)
-                    Array.Clear(_lastButtons, buttonState.Length, (_lastButtons.Length - buttonState.Length));
+                if (buttonCount < _lastButtons.Length)
+                    Array.Clear(_lastButtons, buttonCount, (_lastButtons.Length - buttonCount));
             }
             catch (Exception ex)
             {
@@ -56,11 +57,12 @@ namespace FalconBMS.Launcher.Input
             {
                 //NB: the values returned by DirectInput are in compass-direction x100. (eg. "right" == 9_000)
                 int[] povhatState = _hwDevice.CurrentJoystickState.GetPointOfView();
+                int povCount = Math.Min(povhatState.Length, _lastPovHats.Length);
 
-                Array.Copy(povhatState, _lastPovHats, povhatState.Length);
+                Array.Copy(povhatState, _lastPovHats, povCount);
 
-                if (povhatState.Length < _lastPovHats.Length)
-                    Array.Clear(_lastPovHats, povhatState.Length, (_lastPovHats.Length - povhatState.Length));
+                if (povCount < _lastPovHats.Length)
+                    Array.Clear(_lastPovHats, povCount, (_lastPovHats.Length - povCount));
             }
             catch (Exception ex)
             {
@@ -79,8 +81,9 @@ namespace FalconBMS.Launcher.Input
             try
             {
                 byte[] buttonState = _hwDevice.CurrentJoystickState.GetButtons();
+                int buttonCount = Math.Min(buttonState.Length, _lastButtons.Length);
 
-                for (int i = 0; i < buttonState.Length; i++)
+                for (int i = 0; i < buttonCount; i++)
                 {
                     byte bCurr = buttonState[i];
                     byte bLast = _lastButtons[i];
@@ -104,8 +107,9 @@ namespace FalconBMS.Launcher.Input
             try
             {
                 int[] povhatState = _hwDevice.CurrentJoystickState.GetPointOfView();
+                int povCount = Math.Min(povhatState.Length, _lastPovHats.Length);
 
-                for (int i = 0; i < povhatState.Length; i++)
+                for (int i = 0; i < povCount; i++)
                 {
                     int iCurr = povhatState[i];
                     int iLast = _lastPovHats[i];
