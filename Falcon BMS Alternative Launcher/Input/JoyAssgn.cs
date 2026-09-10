@@ -19,6 +19,9 @@ namespace FalconBMS.Launcher.Input
         protected Guid productGUID = Guid.Empty;
         protected Guid instanceGUID = Guid.Empty;
 
+        private WinMmJoystickFallback wineMfdFallback;
+        private int nextInputDiagnosticTick;
+
         // Method
         public string GetSanitizedProductName() { return productName ?? throw new NullReferenceException(); }
         public Guid GetProductGUID() { return productGUID; }
@@ -120,6 +123,100 @@ namespace FalconBMS.Launcher.Input
 
             productGUID = deviceInstance.ProductGuid;
             instanceGUID = deviceInstance.InstanceGuid;
+
+            LogDirectInputDescription(deviceInstance);
+        }
+
+        /// <summary>
+        /// Acquires the normal DirectInput device. Wine's Managed DirectX implementation can
+        /// reject a CarrierAce MFD data format with E_INVALIDARG; only that narrow case gets
+        /// the WinMM button fallback.
+        /// </summary>
+        public void Acquire()
+        {
+            try
+            {
+                hwDevice.Acquire();
+                Diagnostics.Log("DirectInput Acquire succeeded: " + productName);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("DirectInput Acquire failed: " + productName + "; " + ex.GetType().FullName + "; " + ex.Message,
+                    Diagnostics.LogLevels.Warning);
+                Diagnostics.Log(ex);
+
+                int joystickId;
+                if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd() && TryGetJoystickId(out joystickId))
+                {
+                    wineMfdFallback = new WinMmJoystickFallback(joystickId, productName);
+                    Diagnostics.Log("Wine MFD fallback enabled: " + productName + "; WinMM joystick id=" + joystickId + "; button limit=32",
+                        Diagnostics.LogLevels.Warning);
+                }
+            }
+        }
+
+        public void Unacquire()
+        {
+            if (wineMfdFallback != null)
+                return;
+            try { hwDevice.Unacquire(); }
+            catch (Exception ex) { Diagnostics.Log(ex); }
+        }
+
+        private bool IsCarrierAceMfd()
+        {
+            return !String.IsNullOrEmpty(productName) &&
+                productName.IndexOf("CarrierAce", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                productName.IndexOf("MFD", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool TryGetJoystickId(out int joystickId)
+        {
+            joystickId = -1;
+            try
+            {
+                joystickId = hwDevice.Properties.JoystickId;
+                Diagnostics.Log("DirectInput DeviceProperties: " + productName + "; JoystickId=" + joystickId +
+                    "; ProductName=" + hwDevice.Properties.ProductName + "; TypeName=" + hwDevice.Properties.TypeName);
+                return joystickId >= 0;
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Unable to read DirectInput DeviceProperties for " + productName + ": " + ex.Message,
+                    Diagnostics.LogLevels.Warning);
+                return false;
+            }
+        }
+
+        private void LogDirectInputDescription(DeviceInstance deviceInstance)
+        {
+            try
+            {
+                DeviceCaps caps = hwDevice.Caps;
+                Diagnostics.Log("DirectInput DeviceInformation: ProductName=" + deviceInstance.ProductName +
+                    "; InstanceName=" + deviceInstance.InstanceName + "; ProductGuid=" + deviceInstance.ProductGuid +
+                    "; InstanceGuid=" + deviceInstance.InstanceGuid + "; Caps axes=" + caps.NumberAxes +
+                    "; buttons=" + caps.NumberButtons + "; povs=" + caps.NumberPointOfViews);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Unable to read DirectInput DeviceCaps for " + productName + ": " + ex.Message,
+                    Diagnostics.LogLevels.Warning);
+            }
+            int ignoredJoystickId;
+            TryGetJoystickId(out ignoredJoystickId);
+        }
+
+        private void LogInputSnapshot(byte[] buttonStates, int[] povStates, JoystickState state, string source)
+        {
+            if (Environment.TickCount < nextInputDiagnosticTick) return;
+            nextInputDiagnosticTick = Environment.TickCount + 5000;
+            int activeButtons = 0;
+            for (int i = 0; i < buttonStates.Length; ++i)
+                if (buttonStates[i] != 0) ++activeButtons;
+            Diagnostics.Log("Input snapshot [" + source + "]: " + productName + "; buttons=" + buttonStates.Length +
+                "; active=" + activeButtons + "; povs=" + povStates.Length + "; axes X/Y/Z/Rx/Ry/Rz=" +
+                state.X + "/" + state.Y + "/" + state.Z + "/" + state.Rx + "/" + state.Ry + "/" + state.Rz);
         }
 
         public void SelectAvionicsProfile(string avionicsProfile = null)
@@ -534,9 +631,13 @@ namespace FalconBMS.Launcher.Input
 
         public byte[] GetButtons()
         {
+            if (wineMfdFallback != null)
+                return GetWineFallbackButtonsOrEmpty();
             try
             {
-                byte[] buttonStates = hwDevice.CurrentJoystickState.GetButtons();
+                JoystickState state = hwDevice.CurrentJoystickState;
+                byte[] buttonStates = state.GetButtons();
+                LogInputSnapshot(buttonStates, state.GetPointOfView(), state, "Managed DirectInput");
                 if (buttonStates.Length == CommonConstants.DX_MAX_BUTTONS) return buttonStates;
 
                 byte[] buttonStates128 = new byte[CommonConstants.DX_MAX_BUTTONS];
@@ -548,12 +649,30 @@ namespace FalconBMS.Launcher.Input
                 // Microsoft.DirectX.DirectInput.InputLostException happens on some systems - reasons unclear.
                 Diagnostics.Log(ex);
 
+                if (wineMfdFallback != null)
+                    return GetWineFallbackButtonsOrEmpty();
+
                 return new byte[CommonConstants.DX_MAX_BUTTONS];
             }
         }
 
+        private byte[] GetWineFallbackButtonsOrEmpty()
+        {
+            string error;
+            byte[] buttonStates;
+            if (wineMfdFallback.TryGetButtons(out buttonStates, out error))
+            {
+                LogInputSnapshot(buttonStates, new int[0], new JoystickState(), "Wine WinMM fallback");
+                return buttonStates;
+            }
+            Diagnostics.Log(error, Diagnostics.LogLevels.Warning);
+            return new byte[CommonConstants.DX_MAX_BUTTONS];
+        }
+
         public int[] GetPointOfView()
         {
+            if (wineMfdFallback != null)
+                return new int[CommonConstants.DX_MAX_HATS];
             try
             {
                 int[] hatStates = hwDevice.CurrentJoystickState.GetPointOfView();

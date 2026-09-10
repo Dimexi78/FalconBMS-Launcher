@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace FalconBMS.Launcher
 {
@@ -12,6 +13,14 @@ namespace FalconBMS.Launcher
     {
         public App()
         {
+            // Wine's WPF hardware path can render popup/dropdown content black or corrupt.
+            // Keep native Windows on the normal hardware-rendered path.
+            if (WineCompatibility.IsRunningUnderWine())
+            {
+                RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+                Diagnostics.Log("Wine detected: WPF software rendering enabled.");
+            }
+
             Current.DispatcherUnhandledException += App_DispatcherUnhandledException;
             Diagnostics.Log("Application Initialization starting.");
         }

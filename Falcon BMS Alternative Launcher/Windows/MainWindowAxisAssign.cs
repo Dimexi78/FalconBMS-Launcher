@@ -407,14 +407,24 @@ namespace FalconBMS.Launcher.Windows
         public static void AquireAll()
         {
             foreach (JoyAssgn joy in deviceControl.GetJoystickMappings())
-                joy.GetDevice().Acquire();
+            {
+                // A broken DirectInput device must not prevent the remaining devices from loading.
+                try
+                {
+                    joy.Acquire();
+                }
+                catch (Exception ex)
+                {
+                    Diagnostics.Log(ex);
+                }
+            }
             return;
         }
 
         public static void UnaquireAll()
         {
             foreach (JoyAssgn joy in deviceControl.GetJoystickMappings())
-                joy.GetDevice().Unacquire();
+                joy.Unacquire();
             return;
         }
 

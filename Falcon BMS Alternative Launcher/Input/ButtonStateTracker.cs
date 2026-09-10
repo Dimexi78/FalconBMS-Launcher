@@ -36,7 +36,7 @@ namespace FalconBMS.Launcher.Input
             // one of a group of buttons is always in a signalled (on) state.
             try
             {
-                byte[] buttonState = _hwDevice.CurrentJoystickState.GetButtons();
+                byte[] buttonState = _joy.GetButtons();
                 int buttonCount = Math.Min(buttonState.Length, _lastButtons.Length);
 
                 Array.Copy(buttonState, _lastButtons, buttonCount);
@@ -56,7 +56,7 @@ namespace FalconBMS.Launcher.Input
             try
             {
                 //NB: the values returned by DirectInput are in compass-direction x100. (eg. "right" == 9_000)
-                int[] povhatState = _hwDevice.CurrentJoystickState.GetPointOfView();
+                int[] povhatState = _joy.GetPointOfView();
                 int povCount = Math.Min(povhatState.Length, _lastPovHats.Length);
 
                 Array.Copy(povhatState, _lastPovHats, povCount);
@@ -80,7 +80,7 @@ namespace FalconBMS.Launcher.Input
             // Poll and scan button states.
             try
             {
-                byte[] buttonState = _hwDevice.CurrentJoystickState.GetButtons();
+                byte[] buttonState = _joy.GetButtons();
                 int buttonCount = Math.Min(buttonState.Length, _lastButtons.Length);
 
                 for (int i = 0; i < buttonCount; i++)
@@ -91,6 +91,8 @@ namespace FalconBMS.Launcher.Input
                     if (bCurr != bLast)
                     {
                         bool isPressed = (bCurr == CommonConstants.PRS128); //TODO: should this be ==128 or !=0
+                        Diagnostics.Log("ButtonStateTracker transition: " + _joy.GetSanitizedProductName() +
+                            "; button=" + i + "; pressed=" + isPressed);
                         _buttonCallback(_joy, i, isPressed);
 
                         _lastButtons[i] = bCurr;
@@ -106,7 +108,7 @@ namespace FalconBMS.Launcher.Input
             // Poll and scan povhat states.
             try
             {
-                int[] povhatState = _hwDevice.CurrentJoystickState.GetPointOfView();
+                int[] povhatState = _joy.GetPointOfView();
                 int povCount = Math.Min(povhatState.Length, _lastPovHats.Length);
 
                 for (int i = 0; i < povCount; i++)
@@ -118,6 +120,8 @@ namespace FalconBMS.Launcher.Input
                     {
                         // DirectInput transmits pov-hat direction in compass-degrees x100 -- we divide by 4500 to get range [-1|0-7].
                         int eightway = (iCurr <= 7 ? iCurr : iCurr / CommonConstants.POV45);
+                        Diagnostics.Log("ButtonStateTracker POV transition: " + _joy.GetSanitizedProductName() +
+                            "; pov=" + i + "; direction=" + eightway);
                         _povhatCallback(_joy, i, eightway);
 
                         _lastPovHats[i] = iCurr;

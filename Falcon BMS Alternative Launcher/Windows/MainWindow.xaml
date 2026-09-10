@@ -540,7 +540,7 @@
                     <ComboBox x:Name="Category" ItemsSource="{Binding}" HorizontalAlignment="Left" Margin="300,-41,0,0" VerticalAlignment="Top" Width="256" BorderBrush="Black" Background="#80F0F0F0" Foreground="#FF191919" SelectionChanged="Category_SelectionChanged" Height="26" Grid.ColumnSpan="2">
                     </ComboBox>
                     <DataGrid x:Name="KeyMappingGrid" HorizontalAlignment="Stretch" Height="auto" Margin="10,10,9.666,64.334" 
-                              EnableColumnVirtualization="True" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+                              EnableColumnVirtualization="False" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True"
                               RowStyle="{StaticResource MyDataGridStyle}"
                               AutoGenerateColumns="True" 
                               AutoGeneratingColumn="DataGrid_AutoGeneratingColumn"
