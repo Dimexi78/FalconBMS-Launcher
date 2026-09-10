@@ -56,7 +56,7 @@ namespace FalconBMS.Launcher.Input
             }
 
             for (int i = 0; i < MaxButtons; ++i)
-                buttons[i] = (info.Buttons & (1u << i)) == 0 ? (byte)0 : CommonConstants.PRS128;
+                buttons[i] = (byte)((info.Buttons & (1u << i)) == 0 ? CommonConstants.PRS0 : CommonConstants.PRS128);
             return true;
         }
     }

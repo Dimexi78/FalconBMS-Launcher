@@ -17,7 +17,7 @@ namespace FalconBMS.Launcher
             // Keep native Windows on the normal hardware-rendered path.
             if (WineCompatibility.IsRunningUnderWine())
             {
-                RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+                RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
                 Diagnostics.Log("Wine detected: WPF software rendering enabled.");
             }
 
