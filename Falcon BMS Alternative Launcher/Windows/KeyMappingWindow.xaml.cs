@@ -60,6 +60,17 @@ namespace FalconBMS.Launcher.Windows
             Program.ShowDialogAndMakeActive(ownWindow);
         }
 
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+
+            // The main input timer routes events through Program.activeWin. Wine can activate
+            // this borderless modal window after ShowDialogAndMakeActive has returned control
+            // to WPF, so assert the timer target again whenever the popup is activated.
+            Program.activeWin = this;
+            Diagnostics.Log("Key mapping dialog activated: " + _selectedCallback.GetCallback());
+        }
+
         private void CloneTempDialogData()
         {
             _tmpKeyboard = _selectedCallback.Clone();
@@ -152,6 +163,8 @@ namespace FalconBMS.Launcher.Windows
             // Nothing else to do, if this is a release.
             if (newState == false)
                 return;
+
+            Diagnostics.Log("Key mapping dialog input: " + tmpjoy.GetSanitizedProductName() + "; button=" + buttonId);
 
             // Show UI feedback, and currently mapped callback, if any -- incl consideration for shift- and release-modes.
             Pinky pinky = (this.Select_PinkyShift.IsOn == true ? Pinky.Shift : Pinky.UnShift);
