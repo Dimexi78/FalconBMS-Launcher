@@ -218,14 +218,19 @@ namespace FalconBMS.Launcher.Input
 
         private void LogInputSnapshot(byte[] buttonStates, int[] povStates, JoystickState state, string source)
         {
+            LogInputSnapshot(buttonStates, povStates, source,
+                state.X + "/" + state.Y + "/" + state.Z + "/" + state.Rx + "/" + state.Ry + "/" + state.Rz);
+        }
+
+        private void LogInputSnapshot(byte[] buttonStates, int[] povStates, string source, string axes)
+        {
             if (Environment.TickCount < nextInputDiagnosticTick) return;
             nextInputDiagnosticTick = Environment.TickCount + 5000;
             int activeButtons = 0;
             for (int i = 0; i < buttonStates.Length; ++i)
                 if (buttonStates[i] != 0) ++activeButtons;
             Diagnostics.Log("Input snapshot [" + source + "]: " + productName + "; buttons=" + buttonStates.Length +
-                "; active=" + activeButtons + "; povs=" + povStates.Length + "; axes X/Y/Z/Rx/Ry/Rz=" +
-                state.X + "/" + state.Y + "/" + state.Z + "/" + state.Rx + "/" + state.Ry + "/" + state.Rz);
+                "; active=" + activeButtons + "; povs=" + povStates.Length + "; axes X/Y/Z/Rx/Ry/Rz=" + axes);
         }
 
         private void LogDirectInputReadException(Exception ex)
@@ -688,7 +693,7 @@ namespace FalconBMS.Launcher.Input
             byte[] buttonStates;
             if (wineMfdFallback.TryGetButtons(out buttonStates, out error))
             {
-                LogInputSnapshot(buttonStates, new int[0], new JoystickState(), "Wine WinMM fallback");
+                LogInputSnapshot(buttonStates, new int[0], "Wine Linux fallback", "n/a");
                 return buttonStates;
             }
             LogFallbackReadError(error);
