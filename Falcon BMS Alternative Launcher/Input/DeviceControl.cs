@@ -43,7 +43,6 @@ namespace FalconBMS.Launcher.Input
             string pathToUserXml;
             string pathToStockXml;
 
-            int i = 0;
             foreach (DeviceInstance dev in devList)
             {
                 if (suppressList.IsDeviceSuppressed(dev.InstanceGuid) ||
@@ -88,8 +87,6 @@ namespace FalconBMS.Launcher.Input
                         joy.LoadAxesButtonsAndHatsFrom(pathToUserXml);
                     }
                 }
-
-                i += 1;
             }
             
             // Load key bindings from keyfiles.

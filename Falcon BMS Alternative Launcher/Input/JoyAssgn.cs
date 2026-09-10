@@ -19,9 +19,10 @@ namespace FalconBMS.Launcher.Input
         protected Guid productGUID = Guid.Empty;
         protected Guid instanceGUID = Guid.Empty;
 
-        private WinMmJoystickFallback wineMfdFallback;
+        private WineLinuxJoystickFallback wineMfdFallback;
         private int nextInputDiagnosticTick;
         private int nextDirectInputErrorTick;
+        private int nextFallbackErrorTick;
 
         // Method
         public string GetSanitizedProductName() { return productName ?? throw new NullReferenceException(); }
@@ -146,13 +147,16 @@ namespace FalconBMS.Launcher.Input
                     Diagnostics.LogLevels.Warning);
                 Diagnostics.Log(ex);
 
-                WinMmJoystickFallback fallback;
+                WineLinuxJoystickFallback fallback = null;
                 string fallbackError = null;
-                if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd() &&
-                    WinMmJoystickFallback.TryCreateForDevice(productName, out fallback, out fallbackError))
+                bool fallbackCreated = WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd() &&
+                    WineLinuxJoystickFallback.TryCreateForDevice(productName, out fallback, out fallbackError);
+
+                if (fallbackCreated)
                 {
                     wineMfdFallback = fallback;
-                    Diagnostics.Log("Wine MFD fallback enabled: " + productName + "; button limit=32",
+                    Diagnostics.Log("Wine Linux MFD fallback enabled: " + productName + "; source=" + fallback.DevicePath +
+                        "; button limit=" + CommonConstants.DX_MAX_BUTTONS,
                         Diagnostics.LogLevels.Warning);
                 }
                 else if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd())
@@ -231,6 +235,13 @@ namespace FalconBMS.Launcher.Input
             if (Environment.TickCount < nextDirectInputErrorTick) return;
             nextDirectInputErrorTick = Environment.TickCount + 5000;
             Diagnostics.Log(ex);
+        }
+
+        private void LogFallbackReadError(string error)
+        {
+            if (Environment.TickCount < nextFallbackErrorTick) return;
+            nextFallbackErrorTick = Environment.TickCount + 5000;
+            Diagnostics.Log(error, Diagnostics.LogLevels.Warning);
         }
 
         public void SelectAvionicsProfile(string avionicsProfile = null)
@@ -620,6 +631,7 @@ namespace FalconBMS.Launcher.Input
             joy.hwDevice = this.hwDevice;
             joy.productName = this.productName;
             joy.productGUID = this.productGUID;
+            joy.wineMfdFallback = this.wineMfdFallback;
 
             return joy;
         }
@@ -679,7 +691,7 @@ namespace FalconBMS.Launcher.Input
                 LogInputSnapshot(buttonStates, new int[0], new JoystickState(), "Wine WinMM fallback");
                 return buttonStates;
             }
-            Diagnostics.Log(error, Diagnostics.LogLevels.Warning);
+            LogFallbackReadError(error);
             return new byte[CommonConstants.DX_MAX_BUTTONS];
         }
 

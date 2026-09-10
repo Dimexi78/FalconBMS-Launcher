@@ -126,7 +126,7 @@
     <Compile Include="Input\AxisName.cs" />
     <Compile Include="Input\CommonConstants.cs" />
     <Compile Include="Input\ButtonStateTracker.cs" />
-    <Compile Include="Input\WinMmJoystickFallback.cs" />
+    <Compile Include="Input\WineLinuxJoystickFallback.cs" />
     <Compile Include="Input\DeviceSuppressList.cs" />
     <Compile Include="Input\DeviceControl.cs" />
     <Compile Include="Diagnostics.cs" />
