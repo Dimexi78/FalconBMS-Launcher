@@ -21,6 +21,7 @@ namespace FalconBMS.Launcher.Input
 
         private WinMmJoystickFallback wineMfdFallback;
         private int nextInputDiagnosticTick;
+        private int nextDirectInputErrorTick;
 
         // Method
         public string GetSanitizedProductName() { return productName ?? throw new NullReferenceException(); }
@@ -145,13 +146,17 @@ namespace FalconBMS.Launcher.Input
                     Diagnostics.LogLevels.Warning);
                 Diagnostics.Log(ex);
 
-                int joystickId;
-                if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd() && TryGetJoystickId(out joystickId))
+                WinMmJoystickFallback fallback;
+                string fallbackError = null;
+                if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd() &&
+                    WinMmJoystickFallback.TryCreateForDevice(productName, out fallback, out fallbackError))
                 {
-                    wineMfdFallback = new WinMmJoystickFallback(joystickId, productName);
-                    Diagnostics.Log("Wine MFD fallback enabled: " + productName + "; WinMM joystick id=" + joystickId + "; button limit=32",
+                    wineMfdFallback = fallback;
+                    Diagnostics.Log("Wine MFD fallback enabled: " + productName + "; button limit=32",
                         Diagnostics.LogLevels.Warning);
                 }
+                else if (WineCompatibility.IsRunningUnderWine() && IsCarrierAceMfd())
+                    Diagnostics.Log("Wine MFD fallback was not initialized: " + fallbackError, Diagnostics.LogLevels.Warning);
             }
         }
 
@@ -217,6 +222,15 @@ namespace FalconBMS.Launcher.Input
             Diagnostics.Log("Input snapshot [" + source + "]: " + productName + "; buttons=" + buttonStates.Length +
                 "; active=" + activeButtons + "; povs=" + povStates.Length + "; axes X/Y/Z/Rx/Ry/Rz=" +
                 state.X + "/" + state.Y + "/" + state.Z + "/" + state.Rx + "/" + state.Ry + "/" + state.Rz);
+        }
+
+        private void LogDirectInputReadException(Exception ex)
+        {
+            // An unacquirable device is polled at 60 Hz; keep diagnostics useful without
+            // producing a multi-megabyte log every minute.
+            if (Environment.TickCount < nextDirectInputErrorTick) return;
+            nextDirectInputErrorTick = Environment.TickCount + 5000;
+            Diagnostics.Log(ex);
         }
 
         public void SelectAvionicsProfile(string avionicsProfile = null)
@@ -290,7 +304,7 @@ namespace FalconBMS.Launcher.Input
             }
             catch (Exception ex)
             {
-                Diagnostics.Log(ex);
+                LogDirectInputReadException(ex);
                 return 0;
             }
         }
@@ -647,7 +661,7 @@ namespace FalconBMS.Launcher.Input
             catch (Exception ex)
             {
                 // Microsoft.DirectX.DirectInput.InputLostException happens on some systems - reasons unclear.
-                Diagnostics.Log(ex);
+                LogDirectInputReadException(ex);
 
                 if (wineMfdFallback != null)
                     return GetWineFallbackButtonsOrEmpty();
@@ -685,7 +699,7 @@ namespace FalconBMS.Launcher.Input
             catch (Exception ex)
             {
                 // Microsoft.DirectX.DirectInput.InputLostException happens on some systems - reasons unclear.
-                Diagnostics.Log(ex);
+                LogDirectInputReadException(ex);
 
                 return new int[CommonConstants.DX_MAX_HATS];
             }
