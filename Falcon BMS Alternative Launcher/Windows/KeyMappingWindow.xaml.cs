@@ -305,6 +305,22 @@ namespace FalconBMS.Launcher.Windows
 
         private void ClearDX_Click(object sender, RoutedEventArgs e)
         {
+            ClearDXAssignments();
+        }
+
+        private void ClearDX_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Wine/MahApps can occasionally lose Button.Click on this borderless modal window.
+            // Handle the press before the themed Button control's click sequence.
+            if (e.ClickCount != 1)
+                return;
+
+            ClearDXAssignments();
+            e.Handled = true;
+        }
+
+        private void ClearDXAssignments()
+        {
             // Make fresh clones, and button-trackers.
             CloneTempDialogData();
 
@@ -313,6 +329,8 @@ namespace FalconBMS.Launcher.Windows
 
             foreach (JoyAssgn tmpjoy in _tmpJoyAssgns)
                 tmpjoy.UnassigntargetCallback(targetCallback);
+
+            Diagnostics.Log("Key mapping Clear DX: removed provisional assignments for " + targetCallback);
         }
 
         private void ClearKey_Click(object sender, RoutedEventArgs e)
